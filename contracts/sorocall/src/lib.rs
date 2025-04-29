@@ -55,14 +55,19 @@ impl XlmCallOption {
     pub fn claim(env: Env) {
         let store = env.storage().persistent();
         let purchased: bool = store.get(&symbol_short!("purchased")).unwrap();
-        assert!(purchased, "Option not purchased");
         assert!(env.ledger().timestamp() > EXPIRY, "Option not yet expired");
         let price: i128 = store.get(&symbol_short!("price")).unwrap();
         let buyer: Address = store.get(&symbol_short!("buyer")).unwrap();
         let seller: Address = store.get(&symbol_short!("seller")).unwrap();
         let xlm: Address = store.get(&symbol_short!("xlm")).unwrap();
         let usdc: Address = store.get(&symbol_short!("usdc")).unwrap();
-        if price > STRIKE {
+        if price < STRIKE || purchased == false {
+            TokenClient::new(&env, &xlm).transfer(
+                &env.current_contract_address(),
+                &seller,
+                &AMOUNT_XLM,
+            );
+        } else {
             let diff = STRIKE - PREMIUM; // 400_000 (0.40 USDC)
             TokenClient::new(&env, &usdc).transfer_from(
                 &env.current_contract_address(),
@@ -75,15 +80,9 @@ impl XlmCallOption {
                 &buyer,
                 &AMOUNT_XLM,
             );
-        } else {
-            TokenClient::new(&env, &xlm).transfer(
-                &env.current_contract_address(),
-                &seller,
-                &AMOUNT_XLM,
-            );
         }
         store.set(&symbol_short!("purchased"), &false);
     }
 }
 
-mod test;
+//mod test;

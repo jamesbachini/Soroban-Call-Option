@@ -85,7 +85,6 @@ fn test_update_price_by_oracle() {
     });
 }
 
-
 #[test]
 fn test_claim_below_strike() {
     let env = Env::default();
