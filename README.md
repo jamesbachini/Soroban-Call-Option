@@ -11,7 +11,7 @@ A Soroban smart contract implementing a call option for XLM with USDC as the str
 ## Contract Flow
 1. **Initialization**: Seller locks XLM collateral and sets parameters
 2. **Purchase**: Buyer pays premium in USDC to acquire option rights
-3. **Exercise**: Buy has option but not obligation to purchase XLM at the strike price using USDC prior to expiry
+3. **Exercise**: Buyer has option but not obligation to purchase XLM at the strike price using USDC prior to expiry
 4. **Expire**: If option isn't exercised, funds returned to seller
 
 ## Usage
