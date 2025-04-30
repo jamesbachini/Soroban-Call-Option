@@ -14,6 +14,9 @@ pub struct XlmCallOption;
 impl XlmCallOption {
     pub fn sell_option(env: Env, seller: Address, xlm: Address, usdc: Address) {
         let store = env.storage().persistent();
+        if store.get::<_, Address>(&symbol_short!("seller")).is_some() {
+            panic!("Option already sold");
+        }
         store.set(&symbol_short!("seller"), &seller);
         store.set(&symbol_short!("purchased"), &false);
         store.set(&symbol_short!("xlm"), &xlm);
@@ -29,7 +32,7 @@ impl XlmCallOption {
     pub fn purchase_option(env: Env, buyer: Address) {
         let store = env.storage().persistent();
         let purchased: bool = store.get(&symbol_short!("purchased")).unwrap();
-        assert!(!purchased, "Option already purchased");
+        assert!(purchased == false, "Option already purchased");
         assert!(env.ledger().timestamp() < EXPIRY, "Option expired");
         let seller: Address = store.get(&symbol_short!("seller")).unwrap();
         let usdc: Address = store.get(&symbol_short!("usdc")).unwrap();
