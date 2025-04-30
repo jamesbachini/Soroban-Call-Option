@@ -12,7 +12,7 @@ pub struct XlmCallOption;
 
 #[contractimpl]
 impl XlmCallOption {
-    pub fn init(env: Env, seller: Address, xlm: Address, usdc: Address, oracle: Address) {
+    pub fn sell_option(env: Env, seller: Address, xlm: Address, usdc: Address, oracle: Address) {
         let store = env.storage().persistent();
         store.set(&symbol_short!("seller"), &seller);
         store.set(&symbol_short!("purchased"), &false);
@@ -52,32 +52,42 @@ impl XlmCallOption {
         store.set(&symbol_short!("price"), &price);
     }
 
-    pub fn claim(env: Env) {
+    pub fn exercise(env: Env, exerciser: Address) {
         let store = env.storage().persistent();
+        exerciser.require_auth();
+        assert!(env.ledger().timestamp() < EXPIRY, "Option has expired");
         let purchased: bool = store.get(&symbol_short!("purchased")).unwrap();
-        assert!(env.ledger().timestamp() > EXPIRY, "Option not yet expired");
-        let price: i128 = store.get(&symbol_short!("price")).unwrap();
+        assert!(purchased == true, "Option exercised");
         let buyer: Address = store.get(&symbol_short!("buyer")).unwrap();
+        assert!(buyer == exerciser, "Not your option");
         let seller: Address = store.get(&symbol_short!("seller")).unwrap();
         let xlm: Address = store.get(&symbol_short!("xlm")).unwrap();
         let usdc: Address = store.get(&symbol_short!("usdc")).unwrap();
+        TokenClient::new(&env, &usdc).transfer_from(
+            &env.current_contract_address(),
+            &buyer,
+            &seller,
+            STRIKE,
+        );
+        TokenClient::new(&env, &xlm).transfer(
+            &env.current_contract_address(),
+            &buyer,
+            &AMOUNT_XLM,
+        );
+        store.set(&symbol_short!("purchased"), &false);
+    }
+
+    pub fn expire(env: Env) {
+        let store = env.storage().persistent();
+        assert!(env.ledger().timestamp() > EXPIRY, "Option not yet expired");
+        let purchased: bool = store.get(&symbol_short!("purchased")).unwrap();
+        assert!(purchased == true, "Option exercised");
+        let seller: Address = store.get(&symbol_short!("seller")).unwrap();
+        let xlm: Address = store.get(&symbol_short!("xlm")).unwrap();
         if price < STRIKE || purchased == false {
             TokenClient::new(&env, &xlm).transfer(
                 &env.current_contract_address(),
                 &seller,
-                &AMOUNT_XLM,
-            );
-        } else {
-            let diff = STRIKE - PREMIUM; // 400_000 (0.40 USDC)
-            TokenClient::new(&env, &usdc).transfer_from(
-                &env.current_contract_address(),
-                &buyer,
-                &seller,
-                &diff,
-            );
-            TokenClient::new(&env, &xlm).transfer(
-                &env.current_contract_address(),
-                &buyer,
                 &AMOUNT_XLM,
             );
         }
@@ -85,4 +95,4 @@ impl XlmCallOption {
     }
 }
 
-//mod test;
+mod test;

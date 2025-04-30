@@ -33,7 +33,7 @@ fn setup<'a>(env: &'a Env) -> (XlmCallOptionClient<'a>, Address, Address, Addres
     xlm_token.approve(&seller, &contract_id, &loads, &0_u32);
     mock_usdc.mint(&buyer, &loads);
     usdc_token.approve(&buyer, &contract_id, &loads, &0_u32);
-    client.init(&seller, &xlm_id, &usdc_id, &oracle);
+    client.sell_option(&seller, &xlm_id, &usdc_id, &oracle);
     (client, seller, buyer, oracle, usdc_id, xlm_id)
 }
 
@@ -86,7 +86,24 @@ fn test_update_price_by_oracle() {
 }
 
 #[test]
-fn test_claim_below_strike() {
+fn test_exercise() {
+    let env = Env::default();
+    let (client, _seller, buyer, oracle, _usdc_id, _xlm_id) = setup(&env);
+    client.purchase_option(&buyer);
+    let price: i128 = 600_000; // above strike
+    client.update_price(&oracle, &price);
+    env.ledger().with_mut(|li| {
+        li.timestamp = EXPIRY - 1;
+    });
+    client.exercise(&buyer);
+    env.as_contract(&client.address, || {
+        let purchased: bool = env.storage().persistent().get(&symbol_short!("purchased")).unwrap();
+        assert_eq!(purchased, false);
+    });
+}
+
+#[test]
+fn test_expire() {
     let env = Env::default();
     let (client, _seller, buyer, oracle, _usdc_id, _xlm_id) = setup(&env);
     client.purchase_option(&buyer);
@@ -95,24 +112,7 @@ fn test_claim_below_strike() {
     env.ledger().with_mut(|li| {
         li.timestamp = EXPIRY + 1;
     });
-    client.claim();
-    env.as_contract(&client.address, || {
-        let purchased: bool = env.storage().persistent().get(&symbol_short!("purchased")).unwrap();
-        assert_eq!(purchased, false);
-    });
-}
-
-#[test]
-fn test_claim_above_strike() {
-    let env = Env::default();
-    let (client, _seller, buyer, oracle, _usdc_id, _xlm_id) = setup(&env);
-    client.purchase_option(&buyer);
-    let price: i128 = 600_000; // above strike
-    client.update_price(&oracle, &price);
-    env.ledger().with_mut(|li| {
-        li.timestamp = EXPIRY + 1;
-    });
-    client.claim();
+    client.expire();
     env.as_contract(&client.address, || {
         let purchased: bool = env.storage().persistent().get(&symbol_short!("purchased")).unwrap();
         assert_eq!(purchased, false);
