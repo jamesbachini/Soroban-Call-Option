@@ -85,4 +85,4 @@ impl XlmCallOption {
     }
 }
 
-//mod test;
+mod test;
